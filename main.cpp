@@ -6,6 +6,7 @@ using namespace std;
 void print_colors(int* secret, int nb_spots, string* colors_names);
 void new_secret(int* solution, int nb_spots, int nb_colors);
 bool check_solution(int* secret, int* guess, int *perfect, int *colors_only, int nb_spots);
+//void new_guess(int* guess, int nb_spots);
 
 bool in_array(int* arr, int arr_size, int nb);
 void reinitialize_arr(int* arr, int arr_size);
@@ -16,7 +17,7 @@ int main()
   int nb_spots = 4;
   int nb_colors = 5;
 
-  string colors_names[] = {"None", "Red", "Orange", "Yellow",
+  string colors_names[] = {"Red", "Orange", "Yellow",
   "Green", "Blue", "Indigo", "Violet", "Gray", "Black", "Pink"};
 
   int secret[nb_spots];
@@ -30,7 +31,7 @@ int main()
     cout << "\n";
     new_secret(guess, nb_spots, nb_colors);
     print_colors(guess, nb_spots, colors_names);
-  } while(check_solution(secret, guess, &perfect, &colors_only, nb_spots) == 0);
+  } while(!check_solution(secret, guess, &perfect, &colors_only, nb_spots));
 
   cout << "\nSecret: " << "\n";
   print_colors(secret, nb_spots, colors_names);
@@ -47,8 +48,8 @@ void new_secret(int* secret, int nb_spots, int nb_colors)
   reinitialize_arr(secret, nb_spots);
   while(i < nb_spots)
   {
-    new_color = 1 + rand() % nb_colors;
-    if (in_array(secret, nb_spots, new_color) == 0)
+    new_color = rand() % nb_colors;
+    if (!in_array(secret, nb_spots, new_color))
     {
       secret[i] = new_color;
       i++;
