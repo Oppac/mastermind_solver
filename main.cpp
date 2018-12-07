@@ -1,64 +1,181 @@
-#include "mpi.h"
+//#include "mpi.h"
 
 #include <iostream>
 #include <ctime>
+#include <queue>
+#include <vector>
+#include <algorithm>
+#include <numeric>
+
+class Solver
+{
+public:
+  int id;
+  int nb_spots;
+  int nb_colors;
+  std::vector<std::vector<int>> possible_guesses;
+
+  Solver(int id, int nb_spots, int nb_colors)
+  {
+    this->id = id;
+    this->nb_spots = nb_spots;
+    this->nb_colors = nb_colors;
+    this->possible_guesses = solver_possible_guess();
+  }
+
+  //Utility method
+  void print_possible_guesses()
+  {
+    for (int i=0; i < possible_guesses.size(); ++i)
+    {
+      for (int j=0; j < nb_spots; ++j)
+      {
+        std::cout << possible_guesses[i][j] << " ";
+      }
+      std::cout << "\n";
+    }
+  }
+
+  int factorial(int n)
+  {
+    int result = 1;
+    while (n > 1)
+      result *= n--;
+    return result;
+  }
+
+  //Find the set of all possible solutions.
+  std::vector<std::vector<int>> all_possible_guess()
+  {
+    std::vector<std::vector<int>> all_guess;
+    std::vector<int> possible_guess;
+    std::vector<int> permu(nb_colors);
+    std::iota(permu.begin(), permu.end(), 1);
+    int repeat = factorial(nb_colors-nb_spots);
+    do
+    {
+      for (int i=0; i < nb_spots; i++)
+      {
+        possible_guess.push_back(permu[i]);
+      }
+      all_guess.push_back(possible_guess);
+      possible_guess.clear();
+      for (int i=1; i != repeat; i++)
+        next_permutation(permu.begin(), permu.end());
+    } while (std::next_permutation(permu.begin(), permu.end()));
+    return all_guess;
+  }
+
+  //Partition the possible solution among the solvers using their ids.
+  std::vector<std::vector<int>> solver_possible_guess()
+  {
+    std::vector<std::vector<int>> solver_guess;
+    std::vector<int> guess;
+    std::vector<std::vector<int>> all_guess = all_possible_guess();
+    for (int i=0; i < all_guess.size(); ++i)
+    {
+      if (all_guess[i][0] == id)
+      {
+        for(int j=0; j < nb_spots; ++j)
+        {
+          guess.push_back(all_guess[i][j]);
+        }
+        solver_guess.push_back(guess);
+        guess.clear();
+      }
+    }
+    return solver_guess;
+  }
+
+  std::vector<int> give_next_guess()
+  {
+    std::vector<int> guess;
+    for(int i=0; i < nb_spots; ++i)
+      guess.push_back(possible_guesses[0][i]);
+    return guess;
+  }
+
+  void update_possible_guesses()
+  {
+
+  }
+
+  //Give the next guess amongs the plausible ones
+  /*
+  vector<int> make_guess(int nb_spots, int nb_colors)
+  {
+    int i = 1, new_color;
+    std::vector<int> guess;
+    secret.push_back(id);
+    while(i < nb_spots)
+    {
+      new_color = std::rand() % nb_colors;
+      while(new_color == id)
+        new_color = std::rand() % nb_colors;
+      if (!(std::find(secret.begin(), secret.end(), new_color) != secret.end()))
+      {
+        secret.push_back(new_color);
+        i++;
+      }
+    }
+    return secret;
+  }
+  */
+};
+
+class Master
+{
+public:
+  int nb_spots;
+  int nb_colors;
+  std::vector<int> secret;
+
+  Master(int nb_spots, int nb_colors)
+  {
+      this->nb_spots = nb_spots;
+      this->nb_colors = nb_colors;
+      this->secret = new_secret(nb_spots, nb_colors);
+  }
+
+  //Give a new random system
+  std::vector<int> new_secret(int nb_spots, int nb_colors)
+  {
+    int i = 0, new_color;
+    std::vector<int> secret;
+    while(i < nb_spots)
+    {
+      new_color = std::rand() % nb_colors;
+      if (!(std::find(secret.begin(), secret.end(), new_color) != secret.end()))
+      {
+        secret.push_back(new_color);
+        i++;
+      }
+    }
+    return secret;
+  }
+
+};
 
 using namespace std;
 
-void reinitialize_arr(int* arr, int arr_size);
-bool in_array(int* arr, int arr_size, int nb);
-void new_secret(int* solution, int nb_spots, int nb_colors);
-bool check_solution(int* secret, int* guess, int *perfect, int *colors_only, int nb_spots);
-void print_colors(int* secret, int nb_spots, string* colors_names);
-void print_colors(int* secret, int nb_spots, string* colors_names, int perfect, int colors_only);
-
-//Empty the array of its previous colors
-void reinitialize_arr(int* arr, int arr_size)
-{
-  for (int i = 0; i < arr_size; ++i)
-    arr[i] = 0;
-}
-
-//Check if the color is already in the array
-bool in_array(int* arr, int arr_size, int nb)
-{
-  for (int i = 0; i < arr_size; ++i)
-  {
-    if (arr[i] == nb)
-      return 1;
-  }
-  return 0;
-}
-
-//Give a new random system
-void new_secret(int* secret, int nb_spots, int nb_colors)
-{
-  int i = 0, new_color;
-  reinitialize_arr(secret, nb_spots);
-  while(i < nb_spots)
-  {
-    new_color = 1 + rand() % nb_colors;
-    if (!in_array(secret, nb_spots, new_color))
-    {
-      secret[i] = new_color;
-      i++;
-    }
-  }
-}
+bool check_solution(vector<int> secret, vector<int> guess, int *perfect, int *colors_only);
+void print_colors(vector<int> secret, int nb_spots, vector<string>  colors_names);
+void print_colors(vector<int> secret, int nb_spots, vector<string>  colors_names,
+                  int perfect, int colors_only);
 
 //Check if the guess is correct or not
-bool check_solution(int* secret, int* guess, int *perfect, int *colors_only, int nb_spots)
+bool check_solution(vector<int> secret, vector<int> guess, int *perfect, int *colors_only)
 {
   int b = 1;
   *perfect = 0;
   *colors_only = 0;
-  for (int i = 0; i < nb_spots; ++i)
+  for (int i = 0; i < secret.size(); ++i)
   {
     if (secret[i] == guess[i])
       (*perfect)++;
     else
     {
-      if (in_array(secret, nb_spots, guess[i]))
+      if (find(secret.begin(), secret.end(), guess[i]) != secret.end())
         (*colors_only)++;
       b = 0;
     }
@@ -67,7 +184,7 @@ bool check_solution(int* secret, int* guess, int *perfect, int *colors_only, int
 }
 
 //Print the colors
-void print_colors(int* secret, int nb_spots, string* colors_names)
+void print_colors(vector<int> secret, int nb_spots, vector<string> colors_names)
 {
   for (int i = 0; i < nb_spots; ++i)
     cout << colors_names[secret[i]] << " ";
@@ -75,7 +192,8 @@ void print_colors(int* secret, int nb_spots, string* colors_names)
 }
 
 //Print the colors and the perfect and color only values
-void print_colors(int* secret, int nb_spots, string* colors_names, int perfect, int colors_only)
+void print_colors(vector<int> secret, int nb_spots, vector<string> colors_names,
+                  int perfect, int colors_only)
 {
   for (int i = 0; i < nb_spots; ++i)
     cout << colors_names[secret[i]] << " ";
@@ -85,46 +203,39 @@ void print_colors(int* secret, int nb_spots, string* colors_names, int perfect, 
 
 int main(int argc, char* argv[])
 {
+
   srand(time(NULL));
   int nb_spots = 4;
   int nb_colors = 5;
+  int perfect = 0;
+  int colors_only = 0;
 
-  string colors_names[] = {"None", "Red", "Orange", "Yellow",
+  vector<string> colors_names = {"Red", "Orange", "Yellow",
   "Green", "Blue", "Indigo", "Violet", "Gray", "Black", "Pink"};
 
-  int secret[nb_spots];
-  new_secret(secret, nb_spots, nb_colors);
+  Master m(nb_spots, nb_colors);
+  Solver s(1, nb_spots, nb_colors);
+  //s.print_possible_guesses();
+  vector<int> vec = s.give_next_guess();
+  for (auto x : vec) cout << x << " ";
 
-  int perfect = 0;
-  int perfect_values[nb_spots];
-  reinitialize_arr(perfect_values, nb_spots);
-
-  int colors_only = 0;
-  int colors_only_values[nb_spots];
-  reinitialize_arr(colors_only_values, nb_spots);
-
-  int rank, nb_instances;
-
-  MPI_Init(&argc, &argv);
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &nb_instances);
-
-  //cout << rank << "\n";
-  //cout << nb_instances << "\n";
+  //int rank, nb_instances;
+  //MPI_Status status;
+  //MPI_Init(&argc, &argv);
+  //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  //MPI_Comm_size(MPI_COMM_WORLD, &nb_instances);
 
   bool found = 0;
   do {
-      MPI_Status status;
-      int guess[nb_spots];
-      new_secret(guess, nb_spots, nb_colors);
-
-      found = check_solution(secret, guess, &perfect, &colors_only, nb_spots);
-      print_colors(guess, nb_spots, colors_names, perfect, colors_only);
+    //MPI_Status status;
+    std::vector<int> guess = m.new_secret(nb_spots, nb_colors);
+    found = check_solution(m.secret, guess, &perfect, &colors_only);
+    //print_colors(guess, nb_spots, colors_names, perfect, colors_only);
   } while (!found);
 
   cout << "\nSolution: ";
-  print_colors(secret, nb_spots, colors_names);
+  print_colors(m.secret, nb_spots, colors_names);
 
-  MPI_Finalize();
+  //MPI_Finalize();
   return 0;
 }
