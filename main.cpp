@@ -23,6 +23,8 @@ public:
     this->possible_guesses = solver_possible_guess();
   }
 
+  bool check_solution(vector<int> secret, vector<int> guess, int *perfect, int *colors_only);
+
   //Utility method
   void print_possible_guesses()
   {
@@ -92,35 +94,16 @@ public:
     std::vector<int> guess;
     for(int i=0; i < nb_spots; ++i)
       guess.push_back(possible_guesses[0][i]);
+      possible_guesses.erase(std::remove(possible_guesses.begin(),
+                             possible_guesses.end(), guess), possible_guesses.end());
     return guess;
   }
 
-  void update_possible_guesses()
+  void update_possible_guesses(std::vector<int> guess, int perfect, int colors_only)
   {
 
   }
 
-  //Give the next guess amongs the plausible ones
-  /*
-  vector<int> make_guess(int nb_spots, int nb_colors)
-  {
-    int i = 1, new_color;
-    std::vector<int> guess;
-    secret.push_back(id);
-    while(i < nb_spots)
-    {
-      new_color = std::rand() % nb_colors;
-      while(new_color == id)
-        new_color = std::rand() % nb_colors;
-      if (!(std::find(secret.begin(), secret.end(), new_color) != secret.end()))
-      {
-        secret.push_back(new_color);
-        i++;
-      }
-    }
-    return secret;
-  }
-  */
 };
 
 class Master
@@ -213,11 +196,9 @@ int main(int argc, char* argv[])
   vector<string> colors_names = {"Red", "Orange", "Yellow",
   "Green", "Blue", "Indigo", "Violet", "Gray", "Black", "Pink"};
 
-  Master m(nb_spots, nb_colors);
-  Solver s(1, nb_spots, nb_colors);
+  Master master_node(nb_spots, nb_colors);
+  Solver solver_1(1, nb_spots, nb_colors);
   //s.print_possible_guesses();
-  vector<int> vec = s.give_next_guess();
-  for (auto x : vec) cout << x << " ";
 
   //int rank, nb_instances;
   //MPI_Status status;
@@ -226,15 +207,19 @@ int main(int argc, char* argv[])
   //MPI_Comm_size(MPI_COMM_WORLD, &nb_instances);
 
   bool found = 0;
+  int i = 0;
   do {
+    i++;
     //MPI_Status status;
-    std::vector<int> guess = m.new_secret(nb_spots, nb_colors);
-    found = check_solution(m.secret, guess, &perfect, &colors_only);
-    //print_colors(guess, nb_spots, colors_names, perfect, colors_only);
-  } while (!found);
+    vector<int> guess = solver_1.give_next_guess();
+    found = check_solution(master_node.secret, guess, &perfect, &colors_only);
+    //solver_1.update_possible_guesses(guess, perfect, colors_only);
+    print_colors(guess, nb_spots, colors_names, perfect, colors_only);
+  } while (i < 10);
+  //} while (!found);
 
   cout << "\nSolution: ";
-  print_colors(m.secret, nb_spots, colors_names);
+  print_colors(master_node.secret, nb_spots, colors_names);
 
   //MPI_Finalize();
   return 0;
