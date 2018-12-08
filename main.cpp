@@ -1,11 +1,11 @@
-//#include "mpi.h"
-
-#include <iostream>
-#include <ctime>
-#include <queue>
-#include <vector>
 #include <algorithm>
+#include <ctime>
+#include <iostream>
+#include <queue>
 #include <numeric>
+#include <vector>
+
+#include "mpi.h"
 
 class Solver
 {
@@ -166,6 +166,8 @@ public:
 
 };
 
+/////////////////////
+
 using namespace std;
 
 void print_colors(vector<int> secret, int nb_spots, vector<string>  colors_names);
@@ -207,11 +209,11 @@ int main(int argc, char* argv[])
   for (int i=0; i < nb_colors; i++)
     solvers.push_back(new Solver(i, nb_spots, nb_colors));
 
-  //int rank, nb_instances;
-  //MPI_Status status;
-  //MPI_Init(&argc, &argv);
-  //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  //MPI_Comm_size(MPI_COMM_WORLD, &nb_instances);
+  int rank, nb_instances;
+  MPI_Status status;
+  MPI_Init(&argc, &argv);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &nb_instances);
 
   bool found = 0;
   for (auto const &s: solvers)
@@ -239,6 +241,6 @@ int main(int argc, char* argv[])
   cout << "\nSolution: ";
   print_colors(master_node.secret, nb_spots, colors_names);
 
-  //MPI_Finalize();
+  MPI_Finalize();
   return 0;
 }
