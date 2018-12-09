@@ -13,6 +13,8 @@ public:
   int id;
   int nb_spots;
   int nb_colors;
+  int waiting_for_eval = 0;
+
   std::vector<int> secret;
   std::vector<std::vector<int>> possible_guesses;
 
@@ -24,6 +26,7 @@ public:
     this->possible_guesses = solver_possible_guess();
   }
 
+  //Special master solver
   Solver(int nb_spots, int nb_colors)
   {
     this->nb_spots = nb_spots;
@@ -198,8 +201,6 @@ int main(int argc, char* argv[])
   srand(time(NULL));
   int nb_spots = 4;
   int nb_colors = 5;
-  int perfect = 0;
-  int colors_only = 0;
 
   vector<string> colors_names = {"Red", "Orange", "Yellow",
   "Green", "Blue", "Indigo", "Violet", "Gray", "Black", "Pink"};
@@ -216,15 +217,83 @@ int main(int argc, char* argv[])
   MPI_Comm_size(MPI_COMM_WORLD, &nb_instances);
 
   bool found = 0;
+  do
+  {
+    if (rank == 0)
+    {
+      for (int node=1; node < nb_instances; node++)
+      {
+        vector<int> guess_to_eval;
+        int perfect = 0;
+        int colors_only = 0;
+
+        guess_to_eval.resize(nb_spots);
+        MPI_Recv(&guess_to_eval[0], nb_spots, MPI_INT, node, 0, MPI_COMM_WORLD, &status);
+        //cout << "Received " << node << ": ";
+        //for (int k=0; k < nb_spots; ++k)
+          //cout << guess_to_eval[k] << " ";
+        //cout << "\n";
+        found = master_node.check_solution(master_node.secret, guess_to_eval, &perfect, &colors_only);
+        if (found)
+        {
+          cout << "Solution found by " << node << "\n";
+          break;
+        }
+        MPI_Send(&guess_to_eval[0], nb_spots, MPI_INT, node, 0, MPI_COMM_WORLD);
+        MPI_Send(&perfect, nb_spots, MPI_INT, node, 0, MPI_COMM_WORLD);
+        MPI_Send(&colors_only, nb_spots, MPI_INT, node, 0, MPI_COMM_WORLD);
+      }
+    }
+    else
+    {
+      for (auto const &s: solvers)
+      {
+        if (rank-1 == s->id)
+        {
+          if (!(s->possible_guesses.empty()))
+          {
+            if (s->waiting_for_eval)
+            {
+              vector<int> old_guess;
+              int perfect, colors_only;
+              old_guess.resize(nb_spots);
+              //MPI_Recv(&old_guess[0], nb_spots, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
+              //MPI_Recv(&perfect, nb_spots, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
+              //MPI_Recv(&colors_only, nb_spots, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
+              //s->update_possible_guesses(old_guess, perfect, colors_only);
+              s->waiting_for_eval = 0;
+            }
+            else
+            {
+              vector<int> guess = s->give_next_guess();
+              cout << "Guess of solver " << s->id << " on process " << rank << ": ";
+              print_colors(guess, nb_spots, colors_names);
+              cout << "\n";
+              MPI_Send(&guess[0], nb_spots, MPI_INT, 0, 0, MPI_COMM_WORLD);
+              //s->waiting_for_eval = 1;
+            }
+          }
+          else
+          {
+            break;
+          }
+        }
+      }
+    }
+  } while(!found);
+
+  //Non-parallel solver
+  /*
+  bool found = 0;
   for (auto const &s: solvers)
   {
     while (!(s->possible_guesses.empty()))
     {
       vector<int> guess = s->give_next_guess();
-      found = master_node.check_solution(master_node.secret, guess, &perfect, &colors_only);
+      found = master_node.check_solution(master_node.secret, s->guess, &perfect, &colors_only);
       if (found)
         break;
-      s->update_possible_guesses(guess, perfect, colors_only);
+      s->update_possible_guesses(s->guess, perfect, colors_only);
       //cout << "\n";
       //s->print_possible_guesses();
       print_colors(guess, nb_spots, colors_names, perfect, colors_only);
@@ -234,8 +303,8 @@ int main(int argc, char* argv[])
       cout << "Solution found by solver " << s->id << "\n";
       break;
     }
-
   }
+  */
 
 
   cout << "\nSolution: ";
