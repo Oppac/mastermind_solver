@@ -236,13 +236,18 @@ int main(int argc, char* argv[])
         found = master_node.check_solution(master_node.secret, guess_to_eval, &perfect, &colors_only);
         if (found)
         {
-          cout << "Solution found by " << node << "\n";
+          cout << "\nSolution found by " << node << "\n";
           break;
         }
-        MPI_Send(&guess_to_eval[0], nb_spots, MPI_INT, node, 0, MPI_COMM_WORLD);
-        MPI_Send(&perfect, nb_spots, MPI_INT, node, 0, MPI_COMM_WORLD);
-        MPI_Send(&colors_only, nb_spots, MPI_INT, node, 0, MPI_COMM_WORLD);
+        /*else
+        {
+          MPI_Send(&guess_to_eval[0], nb_spots, MPI_INT, node, 0, MPI_COMM_WORLD);
+          MPI_Send(&perfect, nb_spots, MPI_INT, node, 0, MPI_COMM_WORLD);
+          MPI_Send(&colors_only, nb_spots, MPI_INT, node, 0, MPI_COMM_WORLD);
+        }*/
       }
+      if (found)
+        break;
     }
     else
     {
@@ -257,10 +262,10 @@ int main(int argc, char* argv[])
               vector<int> old_guess;
               int perfect, colors_only;
               old_guess.resize(nb_spots);
-              //MPI_Recv(&old_guess[0], nb_spots, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
-              //MPI_Recv(&perfect, nb_spots, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
-              //MPI_Recv(&colors_only, nb_spots, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
-              //s->update_possible_guesses(old_guess, perfect, colors_only);
+              MPI_Recv(&old_guess[0], nb_spots, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
+              MPI_Recv(&perfect, nb_spots, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
+              MPI_Recv(&colors_only, nb_spots, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
+              s->update_possible_guesses(old_guess, perfect, colors_only);
               s->waiting_for_eval = 0;
             }
             else
@@ -275,6 +280,7 @@ int main(int argc, char* argv[])
           }
           else
           {
+            found = 1;
             break;
           }
         }
@@ -306,9 +312,9 @@ int main(int argc, char* argv[])
   }
   */
 
-
   cout << "\nSolution: ";
   print_colors(master_node.secret, nb_spots, colors_names);
+  cout << rank;
 
   MPI_Finalize();
   return 0;
