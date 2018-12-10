@@ -228,13 +228,17 @@ void run_master_node(Solver& master, int nb_solvers, int nb_spots, bool &found, 
       { //Evaluate the received guess.
         int perfect = 0;
         int colors_only = 0;
-        cout << "From node " << node << ": ";
-        print_colors(guess, nb_spots, colors_names);
         found = master.check_solution(master.secret, guess, &perfect, &colors_only);
+        cout << "From node " << node << ": ";
+        print_colors(guess, nb_spots, colors_names, perfect, colors_only);
+        cout << "\n";
         MPI_Send(&perfect, 1, MPI_INT, node, 0, MPI_COMM_WORLD);
         MPI_Send(&colors_only, 1, MPI_INT, node, 0, MPI_COMM_WORLD);
         if (found)
         { //Other solvers need to be stopped if the secret has been found.
+          cout << "Solution have been found by solver " << node << "\n";
+          cout << "Solution: ";
+          print_colors(master.secret, nb_spots, colors_names);
           for (int node=1; node < nb_solvers; node++)
             MPI_Send(&FOUND, 1, MPI_INT, node, 0, MPI_COMM_WORLD);
           break;
@@ -275,7 +279,7 @@ int main(int argc, char* argv[])
 
   srand(time(NULL));
   int nb_spots = 4;
-  int nb_colors = 5;
+  int nb_colors = 10;
 
   vector<string> colors_names = {"Red", "Orange", "Yellow",
   "Green", "Blue", "Indigo", "Violet", "Gray", "Black", "Pink"};
@@ -290,11 +294,13 @@ int main(int argc, char* argv[])
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nb_solvers);
 
+
   if (!(nb_solvers == nb_colors+1))
   { //Because each solver node is responsible for exactly one color
     cout << "The number of nodes need to be exactly the number of colors + 1";
     exit(EXIT_FAILURE);
   }
+
 
   //Loop until the solution is found
   bool found = 0;
@@ -339,12 +345,6 @@ int main(int argc, char* argv[])
     }
   }
   */
-
-  if (rank == 0)
-  {
-    cout << "\nSolution: ";
-    print_colors(master_node.secret, nb_spots, colors_names);
-  }
 
   MPI_Finalize();
   return 0;
