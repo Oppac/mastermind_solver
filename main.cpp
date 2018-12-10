@@ -229,7 +229,7 @@ void run_master_node(Solver& master, int nb_solvers, int nb_spots, bool &found, 
         int perfect = 0;
         int colors_only = 0;
         found = master.check_solution(master.secret, guess, &perfect, &colors_only);
-        cout << "From node " << node << ": ";
+        cout << "From solver " << node << ": ";
         print_colors(guess, nb_spots, colors_names, perfect, colors_only);
         cout << "\n";
         MPI_Send(&perfect, 1, MPI_INT, node, 0, MPI_COMM_WORLD);
