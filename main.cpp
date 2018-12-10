@@ -18,7 +18,6 @@ public:
   int id;
   int nb_spots;
   int nb_colors;
-  int waiting_for_eval = 0;
 
   std::vector<int> secret;
   std::vector<std::vector<int>> possible_guesses;
