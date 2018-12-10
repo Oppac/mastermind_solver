@@ -22,12 +22,14 @@ public:
 
   std::vector<int> secret;
   std::vector<std::vector<int>> possible_guesses;
+  std::vector<std::vector<int>> all_guess;
 
-  Solver(int id, int nb_spots, int nb_colors)
+  Solver(int id, int nb_spots, int nb_colors, std::vector<std::vector<int>> all_guess)
   {
     this->id = id;
     this->nb_spots = nb_spots;
     this->nb_colors = nb_colors;
+    this->all_guess = all_guess;
     this->possible_guesses = solver_possible_guess();
   }
 
@@ -91,7 +93,6 @@ public:
   {
     std::vector<std::vector<int>> solver_guess;
     std::vector<int> guess;
-    std::vector<std::vector<int>> all_guess = all_possible_guess();
     for (int i=0; i < all_guess.size(); ++i)
     {
       if (all_guess[i][0] == id)
@@ -205,7 +206,6 @@ void print_colors(vector<int> secret, int nb_spots, vector<string> colors_names,
   for (int i = 0; i < nb_spots; ++i)
     cout << colors_names[secret[i]] << " ";
   cout << "\nPerfect: " << perfect << " - Color Only: " << colors_only << "\n";
-  cout << "\n";
 }
 
 //Master node
@@ -285,9 +285,11 @@ int main(int argc, char* argv[])
   "Green", "Blue", "Indigo", "Violet", "Gray", "Black", "Pink"};
 
   Solver master_node(nb_spots, nb_colors);
+  std::vector<std::vector<int>> all_guess = master_node.all_possible_guess();
+
   vector<Solver*> solvers;
   for (int i=0; i < nb_colors; i++)
-    solvers.push_back(new Solver(i, nb_spots, nb_colors));
+    solvers.push_back(new Solver(i, nb_spots, nb_colors, all_guess));
 
   int rank, nb_solvers;
   MPI_Init(&argc, &argv);
