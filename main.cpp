@@ -6,6 +6,7 @@
 
 #include "mpi.h"
 
+//Flags to send between the master node and the solvers.
 const int NEW_GUESS = -1;
 const int EVAL_GUESS = -2;
 const int FOUND = -3;
@@ -30,7 +31,7 @@ public:
     this->possible_guesses = solver_possible_guess();
   }
 
-  //Special master solver
+  //Special master constructor
   Solver(int nb_spots, int nb_colors)
   {
     this->nb_spots = nb_spots;
@@ -38,7 +39,7 @@ public:
     this->secret = new_secret(nb_spots, nb_colors);
   }
 
-  //Utility method
+  //Utility method -> print the remaining possible guesses.
   void print_possible_guesses()
   {
     if (!(possible_guesses.empty()))
@@ -54,6 +55,7 @@ public:
       std::cout << "No possible guess left\n";
   }
 
+  //Utility function -> compute the factorial of n.
   int factorial(int n)
   {
     int result = 1;
@@ -103,6 +105,7 @@ public:
     return solver_guess;
   }
 
+  //Return the next guess in the possible guesses list.
   std::vector<int> give_next_guess()
   {
     std::vector<int> guess;
@@ -116,6 +119,7 @@ public:
     return guess;
   }
 
+  //Remove the unplausible guesses using the feedback send by the master node.
   void update_possible_guesses(std::vector<int> old_guess, int perfect, int colors_only)
   {
     int tmp_perfect = perfect;
@@ -136,7 +140,7 @@ public:
   }
 
 
-  //Check if the guess is correct or not
+  //Check two system against each other and give their perfect and color-only score.
   bool check_solution(std::vector<int> secret, std::vector<int> guess, int *perfect, int *colors_only)
   {
     int b = 1;
@@ -156,7 +160,7 @@ public:
     return b;
   }
 
-  //Give a new random system
+  //Give a new random secret.
   std::vector<int> new_secret(int nb_spots, int nb_colors)
   {
     int i = 0, new_color;
@@ -204,6 +208,7 @@ void print_colors(vector<int> secret, int nb_spots, vector<string> colors_names,
   cout << "\n";
 }
 
+//Master node
 void run_master_node(Solver& master, int nb_solvers, int nb_spots, bool &found, vector<string> colors_names)
 {
   int msg;
@@ -220,7 +225,7 @@ void run_master_node(Solver& master, int nb_solvers, int nb_spots, bool &found, 
       if (guess[0] == NO_MORE_GUESSES)
         break;
       else
-      {
+      { //Evaluate the received guess.
         int perfect = 0;
         int colors_only = 0;
         cout << "From node " << node << ": ";
@@ -229,7 +234,7 @@ void run_master_node(Solver& master, int nb_solvers, int nb_spots, bool &found, 
         MPI_Send(&perfect, 1, MPI_INT, node, 0, MPI_COMM_WORLD);
         MPI_Send(&colors_only, 1, MPI_INT, node, 0, MPI_COMM_WORLD);
         if (found)
-        {
+        { //Other solvers need to be stopped if the secret has been found.
           for (int node=1; node < nb_solvers; node++)
             MPI_Send(&FOUND, 1, MPI_INT, node, 0, MPI_COMM_WORLD);
           break;
@@ -239,7 +244,7 @@ void run_master_node(Solver& master, int nb_solvers, int nb_spots, bool &found, 
   }
 }
 
-
+//Solver node
 void run_solver_node(Solver& s, int nb_spots, bool &found)
 {
   int msg;
@@ -249,7 +254,7 @@ void run_solver_node(Solver& s, int nb_spots, bool &found)
   {
     vector<int> guess = s.give_next_guess();
     if (!(guess.empty()))
-    {
+    { //Send a guess to be evaluated then act on the feedback.
       int perfect, colors_only;
       MPI_Send(&EVAL_GUESS, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
       MPI_Send(&guess[0], nb_spots, MPI_INT, 0, 0, MPI_COMM_WORLD);
@@ -286,11 +291,12 @@ int main(int argc, char* argv[])
   MPI_Comm_size(MPI_COMM_WORLD, &nb_solvers);
 
   if (!(nb_solvers == nb_colors+1))
-  {
+  { //Because each solver node is responsible for exactly one color
     cout << "The number of nodes need to be exactly the number of colors + 1";
-    MPI_Abort(MPI_COMM_WORLD, -1);
+    exit(EXIT_FAILURE);
   }
 
+  //Loop until the solution is found
   bool found = 0;
   do
   {
